@@ -3,7 +3,8 @@ import math as math
 from scipy.optimize import minimize
 from scipy.special import gammaln
 
-def pin_ekop(buys, sells):
+
+def pin_ekop(buys: np.ndarray, sells: np.ndarray) -> float:
     """
     Calculates the probability of informed trading (PIN) using the Easley, Kiefer, O'Hara, and Paperman (EKOP) model.
 
@@ -13,9 +14,21 @@ def pin_ekop(buys, sells):
 
     Returns:
         float: The estimated PIN value.
-    """
 
-    def neg_log_likelihood(params, buys, sells):
+    Raises:
+        ValueError: If input arrays are empty or have different lengths
+        TypeError: If inputs cannot be converted to numpy arrays
+    """
+    if not isinstance(buys, np.ndarray) or not isinstance(sells, np.ndarray):
+        raise TypeError("Input arrays must be numpy arrays")
+
+    if len(buys) == 0 or len(sells) == 0:
+        raise ValueError("Input arrays cannot be empty")
+
+    if len(buys) != len(sells):
+        raise ValueError("Buy and sell arrays must have the same length")
+
+    def neg_log_likelihood(params: np.ndarray, buys: np.ndarray, sells: np.ndarray) -> float:
         alpha, mu, epsilon_b, epsilon_s = params
         ll = 0
         for b, s in zip(buys, sells):
@@ -36,8 +49,13 @@ def pin_ekop(buys, sells):
     # Bounds for parameters
     bnds = ((0, 1), (0, None), (0, None), (0, None))
 
-    # Optimization
-    result = minimize(neg_log_likelihood, params_init, args=(buys, sells), bounds=bnds, method='L-BFGS-B')
+    try:
+        # Optimization
+        result = minimize(neg_log_likelihood, params_init, args=(buys, sells), bounds=bnds, method='L-BFGS-B')
+        if not result.success:
+            raise ValueError(f"Optimization failed: {result.message}")
+    except Exception as e:
+        raise ValueError(f"Failed to optimize parameters: {str(e)}")
 
     # Extract estimated parameters
     alpha_hat, mu_hat, epsilon_b_hat, epsilon_s_hat = result.x
@@ -45,7 +63,7 @@ def pin_ekop(buys, sells):
     # Calculate PIN
     pin = alpha_hat * mu_hat / (alpha_hat * mu_hat + epsilon_b_hat + epsilon_s_hat)
 
-    return pin
+    return float(pin)
 
 
 def test_pin_ekop():
